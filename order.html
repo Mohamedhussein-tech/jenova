@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jenova | حالة الطلب</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="store.css">
+</head>
+<body>
+<div class="wrap">
+  <a class="brand" href="index.html">Jenova</a> <span class="tag">DON'T CALL ME</span>
+  <div class="card" id="box">
+    <h2>حالة طلبك</h2>
+    <div class="big" id="code"></div>
+    <div id="ask">
+      <label for="phone">رقم الموبايل اللي طلبت بيه</label>
+      <input id="phone" type="tel" inputmode="numeric" maxlength="11" placeholder="01xxxxxxxxx">
+      <button class="btn alt" id="go" type="button">عرض الحالة</button>
+    </div>
+    <div id="state" aria-live="polite"></div>
+    <div class="err" id="err" role="alert"></div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script>
+const C = window.JENOVA, $ = (i) => document.getElementById(i);
+const sb = supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY);
+const code = (new URLSearchParams(location.search).get("code") || "").toUpperCase();
+$("code").textContent = code ? "#" + code : "";
+const MSG = {
+  pending: ["⏳ في انتظار تأكيد الدفع", "بنراجع تحويلك. هيتأكد الطلب في أقرب وقت، سيب الصفحة مفتوحة أو ارجعلها."],
+  confirmed: ["✅ تم تأكيد الدفع", "طلبك اتأكد وبيتجهز دلوقتي."],
+  shipped: ["🚚 الطلب في الطريق", "الطلب اتشحن، هنتواصل معاك على رقم الموبايل."],
+  rejected: ["❌ لم نتمكن من تأكيد الدفع", "تواصل معانا على واتساب أو اتصل بينا ونحل الموضوع."],
+};
+let timer, phone = "";
+async function check() {
+  $("err").textContent = "";
+  const { data, error } = await sb.rpc("get_order_status", { p_code: code, p_phone: phone });
+  if (error || !data || !data.length) { $("err").textContent = "مفيش طلب بالكود والرقم دول. راجع الرقم."; return false; }
+  const o = data[0], m = MSG[o.status];
+  $("state").innerHTML = "";
+  const p = document.createElement("span"); p.className = "pill " + o.status; p.textContent = m[0];
+  const t = document.createElement("p"); t.textContent = m[1];
+  const s = document.createElement("p"); s.className = "muted"; s.textContent = `الإجمالي: ${o.total} جنيه`;
+  $("state").append(p, t, s);
+  if (o.status === "confirmed" || o.status === "shipped" || o.status === "rejected") clearInterval(timer);
+  return true;
+}
+async function start() {
+  phone = $("phone").value.trim();
+  if (!(await check())) return;
+  $("ask").hidden = true; clearInterval(timer); timer = setInterval(check, 10000);
+}
+$("go").onclick = start;
+try { const saved = localStorage.getItem("jenova_phone"); if (saved && code) { $("phone").value = saved; start(); } } catch {}
+</script>
+</body>
+</html>
