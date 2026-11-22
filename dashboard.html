@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Jenova | لوحة التحكم</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="store.css">
+<style>
+.tabs{display:flex;gap:8px;margin:10px 0}.tabs .btn{margin:0;flex:1;font-size:16px;padding:12px}
+.tabs .btn[aria-selected=false]{background:#fff;color:var(--ink);border:2px solid var(--ink)}
+.kpi{display:grid;grid-template-columns:1fr 1fr;gap:10px}.kpi div{background:#fff;border:2px solid var(--ink);padding:12px;text-align:center}.kpi b{display:block;font-size:28px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="brand">Jenova admin</span>
+  <form class="card" id="login">
+    <h2>دخول</h2>
+    <label for="em">الإيميل</label><input id="em" type="email" autocomplete="username">
+    <label for="pw">الباسورد</label><input id="pw" type="password" autocomplete="current-password">
+    <div class="err" id="lerr" role="alert"></div>
+    <button class="btn alt" type="submit">دخول</button>
+  </form>
+
+  <div id="app" hidden>
+    <div class="tabs" role="tablist">
+      <button class="btn" id="tOrders" role="tab" aria-selected="true" type="button">الطلبات</button>
+      <button class="btn" id="tStats" role="tab" aria-selected="false" type="button">الزوار</button>
+    </div>
+    <div>
+      <button class="btn alt sm" id="refresh" type="button">تحديث</button>
+      <button class="btn alt sm" id="out" type="button">خروج</button>
+    </div>
+    <div id="orders"></div>
+    <div id="stats" hidden></div>
+  </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script>
+const C = window.JENOVA, $ = (i) => document.getElementById(i);
+const sb = supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY);
+const LBL = { pending: "قيد التأكيد", confirmed: "مؤكد", shipped: "اتشحن", rejected: "مرفوض" };
+const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+let tab = "orders";
+
+async function loadOrders() {
+  const box = $("orders");
+  const { data, error } = await sb.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(100);
+  if (error) { box.textContent = "مفيش صلاحية. تأكد إن الإيميل هو إيميل الأدمن."; return; }
+  box.innerHTML = "";
+  for (const o of data) {
+    const c = mk("div", "card");
+    c.append(mk("h2", "", `#${o.code}`), mk("span", "pill " + o.status, LBL[o.status]));
+    c.append(mk("p", "", `${o.customer_name} • ${o.phone}`), mk("p", "", o.address));
+    o.order_items.forEach((i) => c.append(mk("div", "row", `${i.name} | مقاس ${i.size} × ${i.qty}`)));
+    c.append(mk("p", "", `الإجمالي: ${o.total} جنيه`), mk("p", "muted", `حوّل من: ${o.pay_wallet} • ${new Date(o.created_at).toLocaleString("ar-EG")}`));
+    if (o.receipt_path) {
+      const { data: s } = await sb.storage.from("receipts").createSignedUrl(o.receipt_path, 3600);
+      if (s) { const a = mk("a", "", "عرض الإيصال"); a.href = s.signedUrl; a.target = "_blank"; a.rel = "noopener"; c.append(a); }
+    }
+    const bar = mk("div", "row");
+    [["confirmed", "تأكيد الدفع"], ["shipped", "تم الشحن"], ["rejected", "رفض"]].forEach(([st, t]) => {
+      const b = mk("button", "btn sm" + (st === "rejected" ? "" : " alt"), t); b.type = "button";
+      b.onclick = async () => { await sb.from("orders").update({ status: st }).eq("id", o.id); loadOrders(); };
+      bar.append(b);
+    });
+    c.append(bar); box.append(c);
+  }
+  if (!data.length) box.append(mk("p", "muted", "مفيش طلبات لسه."));
+}
+
+const uniq = (rows) => new Set(rows.map((r) => r.session_id)).size;
+function list(title, map) {
+  const f = mk("div"); f.append(mk("h2", "", title));
+  const entries = Object.entries(map).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) f.append(mk("p", "muted", "لسه مفيش بيانات"));
+  entries.forEach(([k, v]) => f.append(mk("div", "row", `${k} : ${v}`)));
+  return f;
+}
+async function loadStats() {
+  const box = $("stats"); box.innerHTML = "";
+  const since = new Date(Date.now() - 7 * 864e5).toISOString();
+  const { data, error } = await sb.from("events").select("*").gte("created_at", since).order("created_at", { ascending: false }).limit(5000);
+  if (error) { box.textContent = "مفيش صلاحية أو مشكلة في الجدول."; return; }
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const visits = data.filter((e) => e.type === "visit");
+  const durs = data.filter((e) => e.type === "duration" && e.seconds > 0 && e.seconds < 3600);
+  const count = (type, key) => data.filter((e) => e.type === type).reduce((m, e) => { const k = e[key] || "غير معروف"; m[k] = (m[k] || 0) + 1; return m; }, {});
+  const avg = durs.length ? Math.round(durs.reduce((n, e) => n + e.seconds, 0) / durs.length) : 0;
+  const card = mk("div", "card"), k = mk("div", "kpi");
+  [[uniq(visits.filter((e) => new Date(e.created_at) >= today)), "زوار اليوم"], [uniq(visits), "زوار آخر 7 أيام"], [avg + " ث", "متوسط وقت البقاء"], [uniq(data.filter((e) => e.type === "add_to_cart")), "زوار أضافوا للسلة"]]
+    .forEach(([v, l]) => { const d = mk("div"); d.append(mk("b", "", v), mk("span", "muted", l)); k.append(d); });
+  card.append(k, list("المنتجات الأكتر مشاهدة", count("view_product", "product_id")), list("المنتجات الأكتر إضافة للسلة", count("add_to_cart", "product_id")), list("الجهاز", count("visit", "device")), list("جاي منين", count("visit", "referrer")));
+  box.append(card);
+}
+
+function setTab(t) {
+  tab = t;
+  $("orders").hidden = t !== "orders"; $("stats").hidden = t !== "stats";
+  $("tOrders").setAttribute("aria-selected", t === "orders"); $("tStats").setAttribute("aria-selected", t === "stats");
+  refresh();
+}
+function refresh() { return tab === "orders" ? loadOrders() : loadStats(); }
+async function show() {
+  const { data } = await sb.auth.getSession();
+  const on = !!data.session; $("login").hidden = on; $("app").hidden = !on;
+  if (on) refresh();
+}
+$("tOrders").onclick = () => setTab("orders");
+$("tStats").onclick = () => setTab("stats");
+$("refresh").onclick = refresh;
+$("login").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const { error } = await sb.auth.signInWithPassword({ email: $("em").value, password: $("pw").value });
+  if (error) $("lerr").textContent = "الإيميل أو الباسورد غلط"; else show();
+});
+$("out").onclick = async () => { await sb.auth.signOut(); show(); };
+show();
+</script>
+</body>
+</html>
