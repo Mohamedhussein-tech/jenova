@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Jenova | الإحصائيات</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="store.css">
+<style>.kpi{display:grid;grid-template-columns:1fr 1fr;gap:10px}.kpi div{background:#fff;border:2px solid var(--ink);padding:12px;text-align:center}.kpi b{display:block;font-size:28px}</style>
+</head>
+<body>
+<div class="wrap">
+  <span class="brand">Jenova stats</span>
+  <p><a href="admin.html" style="color:#fff">← الطلبات</a></p>
+  <div class="card" id="box"><p class="muted">جاري التحميل...</p></div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script>
+const C = window.JENOVA, $ = (i) => document.getElementById(i);
+const sb = supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY);
+const mk = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+const uniq = (rows) => new Set(rows.map((r) => r.session_id)).size;
+function list(title, map) {
+  const f = mk("div"); f.append(mk("h2", "", title));
+  const entries = Object.entries(map).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) f.append(mk("p", "muted", "لسه مفيش بيانات"));
+  entries.forEach(([k, v]) => f.append(mk("div", "row", `${k} : ${v}`)));
+  return f;
+}
+(async () => {
+  const { data: s } = await sb.auth.getSession();
+  if (!s.session) { $("box").textContent = "سجّل دخول من صفحة admin.html الأول وارجع هنا."; return; }
+  const since = new Date(Date.now() - 7 * 864e5).toISOString();
+  const { data, error } = await sb.from("events").select("*").gte("created_at", since).order("created_at", { ascending: false }).limit(5000);
+  if (error) { $("box").textContent = "مفيش صلاحية أو مشكلة في الجدول."; return; }
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const visits = data.filter((e) => e.type === "visit");
+  const durs = data.filter((e) => e.type === "duration" && e.seconds > 0 && e.seconds < 3600);
+  const count = (type, key) => data.filter((e) => e.type === type).reduce((m, e) => { const k = e[key] || "غير معروف"; m[k] = (m[k] || 0) + 1; return m; }, {});
+  const avg = durs.length ? Math.round(durs.reduce((n, e) => n + e.seconds, 0) / durs.length) : 0;
+  const carts = uniq(data.filter((e) => e.type === "add_to_cart"));
+  $("box").innerHTML = "";
+  const k = mk("div", "kpi");
+  [[uniq(visits.filter((e) => new Date(e.created_at) >= today)), "زوار اليوم"], [uniq(visits), "زوار آخر 7 أيام"], [avg + " ث", "متوسط وقت البقاء"], [carts, "زوار أضافوا للسلة"]].forEach(([v, l]) => { const d = mk("div"); d.append(mk("b", "", v), mk("span", "muted", l)); k.append(d); });
+  $("box").append(k, list("المنتجات الأكتر مشاهدة", count("view_product", "product_id")), list("المنتجات الأكتر إضافة للسلة", count("add_to_cart", "product_id")), list("الجهاز", count("visit", "device")), list("جاي منين", count("visit", "referrer")));
+})();
+</script>
+</body>
+</html>
