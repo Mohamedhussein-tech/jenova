@@ -26,3 +26,4 @@ input:focus,textarea:focus,select:focus,button:focus-visible,a:focus-visible{out
 .pill{display:inline-block;padding:4px 12px;border-radius:99px;font-weight:700;color:#fff}
 .pill.pending{background:#b7791f}.pill.confirmed{background:#1d7a46}.pill.shipped{background:#245fa8}.pill.rejected{background:var(--red)}
 @media (prefers-reduced-motion:no-preference){.tag{transition:transform .2s}.tag:hover{transform:rotate(2deg)}}
+button{color:var(--ink)}
