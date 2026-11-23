@@ -81,3 +81,48 @@
   }
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init); else init();
 })();
+/* انترو الافتتاح: سوستة جينز بتتفتح */
+(function () {
+  if (!document.getElementById("racks")) return;
+  const force = /[?&]intro/.test(location.search);
+  let seen = false;
+  try { seen = !!sessionStorage.getItem("jenova_intro"); sessionStorage.setItem("jenova_intro", "1"); } catch {}
+  if ((seen && !force) || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+  const css = document.createElement("style");
+  css.textContent = `
+#intro{position:fixed;inset:0;z-index:100;overflow:hidden;display:grid;place-items:center;cursor:pointer}
+#intro .h{position:absolute;top:0;bottom:0;width:50%;background:#1f2f4a repeating-linear-gradient(45deg,rgba(255,255,255,.05) 0 2px,transparent 2px 6px);transition:transform .9s cubic-bezier(.7,0,.3,1)}
+#intro .l{left:0}#intro .r{right:0}
+#intro.open .l{transform:translateX(-101%)}#intro.open .r{transform:translateX(101%)}
+#intro .tx{position:relative;text-align:center;transition:opacity .25s;animation:ishake .3s 1.05s}
+#intro.open .tx{opacity:0}
+#intro .w{font:400 clamp(64px,22vw,150px)/1 "Permanent Marker",cursive;color:#fff;display:flex;justify-content:center;direction:ltr}
+#intro .w span{display:inline-block;opacity:0;transform:translateY(-40px) rotate(-8deg);animation:idrop .5s cubic-bezier(.2,1.4,.4,1) forwards;animation-delay:calc(var(--i) * .09s)}
+#intro .st{display:inline-block;margin-top:14px;background:#fff;color:#e0262d;font:400 clamp(22px,7vw,44px) "Permanent Marker",cursive;padding:2px 14px;opacity:0;transform:rotate(-3deg) scale(1.8);animation:islap .35s ease-out 1s forwards;direction:ltr}
+#intro .zip{position:absolute;top:0;bottom:0;left:50%;width:10px;margin-left:-5px;background:repeating-linear-gradient(#cfd6de 0 6px,#5b6673 6px 12px);transition:opacity .3s .5s}
+#intro.open .zip{opacity:0}
+#intro .tab{position:absolute;top:0;left:50%;width:26px;height:46px;margin-left:-13px;background:#e8b631;border-radius:6px 6px 14px 14px;box-shadow:0 3px 0 rgba(0,0,0,.3);transition:transform .9s cubic-bezier(.7,0,.3,1)}
+#intro.open .tab{transform:translateY(100vh)}
+#intro .sk{position:absolute;bottom:calc(18px + env(safe-area-inset-bottom,0px));left:0;right:0;text-align:center;color:#9fb0c4;font:600 13px Cairo,sans-serif}
+@keyframes idrop{to{opacity:1;transform:none}}
+@keyframes islap{to{opacity:1;transform:rotate(-3deg) scale(1)}}
+@keyframes ishake{25%{transform:translate(-5px,3px)}50%{transform:translate(5px,-3px)}75%{transform:translate(-2px,2px)}}`;
+  document.head.append(css);
+
+  const el = document.createElement("div");
+  el.id = "intro"; el.setAttribute("aria-hidden", "true");
+  el.innerHTML = '<div class="h l"></div><div class="h r"></div><div class="zip"></div><div class="tab"></div><div class="tx"><div class="w">' +
+    "JENOVA".split("").map((c, i) => `<span style="--i:${i}">${c}</span>`).join("") +
+    '</div><div class="st">DON\'T CALL ME</div></div><div class="sk">اضغط للتخطي</div>';
+  document.body.append(el);
+  const prev = document.body.style.overflow; document.body.style.overflow = "hidden";
+
+  let opened = false, done = false;
+  const open = () => { if (opened) return; opened = true; el.classList.add("open"); setTimeout(finish, 1000); };
+  const finish = () => { if (done) return; done = true; el.remove(); css.remove(); document.body.style.overflow = prev; };
+  el.addEventListener("click", open);
+  addEventListener("keydown", (e) => { if (e.key === "Escape") open(); });
+  setTimeout(open, 2100);
+  setTimeout(finish, 4000);
+})();
