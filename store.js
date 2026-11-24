@@ -164,3 +164,63 @@
       anchor.before(p);
     }).catch(() => {});
 })();
+/* بانر الشحن الترندي (بيخفي البانر القديم) */
+(function () {
+  const C = window.JENOVA, anchor = document.getElementById("racks");
+  if (!C || !anchor) return;
+  const css = document.createElement("style");
+  css.textContent = `
+.promo{display:none!important}
+.ship{position:relative;max-width:1068px;margin:24px 16px 0;padding:26px 16px 30px;background:#121820;color:#fff;border-radius:6px;overflow:hidden;display:flex;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 10px 0 rgba(0,0,0,.3)}
+@media (min-width:1100px){.ship{margin-inline:auto}}
+.ship::before,.ship::after{content:"";position:absolute;left:0;right:0;height:10px;background:repeating-linear-gradient(-45deg,#e8b631 0 14px,#121820 14px 28px)}
+.ship::before{top:0}.ship::after{bottom:0}
+.ship .k{display:block;font:400 clamp(28px,8vw,46px)/1 "Permanent Marker",cursive;color:#e8b631;direction:ltr;text-align:right;transform:rotate(-2deg)}
+.ship .s{display:block;margin-top:8px;font-weight:700;font-size:15px;color:#e8eef5}
+.ship .st{flex:0 0 auto;width:96px;height:96px;border-radius:50%;background:#e0262d;border:3px dashed #fff;display:grid;place-content:center;text-align:center;transform:rotate(-10deg);box-shadow:0 6px 0 rgba(0,0,0,.35)}
+.ship .st b{display:block;font:400 42px/1 "Permanent Marker",cursive}
+.ship .st span{display:block;font-weight:700;font-size:12px;margin-top:2px}
+.ship .road{position:absolute;left:0;right:0;bottom:12px;height:0;border-top:2px dashed rgba(255,255,255,.25)}
+.ship .truck{position:absolute;bottom:14px;right:-40px;font-size:22px}
+.ship.off{padding-block:20px 24px}.ship.off .k{color:#fff}
+@media (prefers-reduced-motion:no-preference){
+.ship::before,.ship::after{background-size:40px 40px;animation:tape 1.1s linear infinite}
+.ship .st{animation:pulse 1.8s ease-in-out infinite}
+.ship.hot .st{animation:shk .7s ease-in-out infinite;background:#ff1f2d}
+.ship .truck{animation:drive 7s linear infinite}
+@keyframes tape{to{background-position:40px 0}}
+@keyframes pulse{0%,100%{transform:rotate(-10deg) scale(1)}50%{transform:rotate(-6deg) scale(1.08)}}
+@keyframes shk{0%,100%{transform:rotate(-10deg)}25%{transform:rotate(-14deg)}75%{transform:rotate(-6deg)}}
+@keyframes drive{to{right:calc(100% + 40px)}}}`;
+  document.head.append(css);
+
+  fetch(`${C.SUPABASE_URL}/rest/v1/settings?select=*&id=eq.1`, { headers: { apikey: C.SUPABASE_ANON_KEY } })
+    .then((r) => r.json()).then(([s]) => {
+      if (!s) return;
+      const left = s.free_ship_left, on = left > 0;
+      const box = document.createElement("div");
+      box.className = "ship" + (on ? (left <= 5 ? " hot" : "") : " off");
+      box.setAttribute("role", "group");
+      box.setAttribute("aria-label", on ? `شحن مجاني، باقي ${left} أوردر` : `الشحن ${s.shipping_fee} جنيه`);
+      const tx = document.createElement("div");
+      const k = document.createElement("span"); k.className = "k"; k.textContent = on ? "FREE SHIPPING" : "SHIPPING";
+      const sub = document.createElement("span"); sub.className = "s";
+      sub.textContent = on ? (left <= 5 ? "🔥 آخر أوردرات العرض، الحق قبل ما يخلص!" : "عرض الافتتاح: الشحن علينا 🎁") : `الشحن لكل المحافظات ${s.shipping_fee} جنيه`;
+      tx.append(k, sub); box.append(tx);
+      if (on) {
+        const st = document.createElement("div"); st.className = "st"; st.setAttribute("aria-hidden", "true");
+        const n = document.createElement("b"); n.textContent = left;
+        const l = document.createElement("span"); l.textContent = "أوردر باقي";
+        st.append(n, l); box.append(st);
+        if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+          const t0 = performance.now(), dur = 900;
+          const tick = (t) => { const p = Math.min(1, (t - t0) / dur); n.textContent = Math.round(left * p); if (p < 1) requestAnimationFrame(tick); else n.textContent = left; };
+          n.textContent = 0; requestAnimationFrame(tick);
+        }
+        const road = document.createElement("div"); road.className = "road"; road.setAttribute("aria-hidden", "true");
+        const truck = document.createElement("span"); truck.className = "truck"; truck.setAttribute("aria-hidden", "true"); truck.textContent = "🚚";
+        box.append(road, truck);
+      }
+      anchor.before(box);
+    }).catch(() => {});
+})();
