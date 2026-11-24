@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Jenova | إتمام الطلب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="store.css">
+</head>
+<body>
+<div class="wrap">
+  <a class="brand" href="index.html">Jenova</a> <span class="tag">DON'T CALL ME</span>
+
+  <div class="card" id="cartCard">
+    <h2>السلة</h2>
+    <div id="items"></div>
+    <div class="row"><b>الإجمالي</b><b id="total">0 جنيه</b></div>
+    <div class="row" id="discRow" hidden><span>خصم الكود</span><b id="disc" style="color:#1d7a46"></b></div>
+    <div class="row"><span>الشحن</span><b id="ship">-</b></div>
+    <div class="row"><b>المطلوب دفعه</b><b id="final">0 جنيه</b></div>
+    <label for="coupon">كود الخصم (لو عندك)</label>
+    <div style="display:flex;gap:8px"><input id="coupon" autocapitalize="characters" autocomplete="off" maxlength="20" style="direction:ltr;text-transform:uppercase"><button type="button" class="btn alt sm" id="applyBtn" style="margin:0;white-space:nowrap">تطبيق</button></div>
+    <div class="muted" id="cmsg" role="status" style="min-height:1.4em;margin-top:6px"></div>
+  </div>
+
+  <form class="card" id="form" novalidate>
+    <h2>بياناتك</h2>
+    <label for="name">الاسم بالكامل</label><input id="name" autocomplete="name" required>
+    <label for="phone">رقم الموبايل</label><input id="phone" type="tel" inputmode="numeric" maxlength="11" autocomplete="tel" placeholder="01xxxxxxxxx" required>
+    <label for="address">العنوان بالتفصيل</label><textarea id="address" rows="3" autocomplete="street-address" placeholder="المحافظة، المنطقة، الشارع، رقم العمارة والشقة" required></textarea>
+
+    <h2 style="margin-top:26px">الدفع بـ اتصالات كاش</h2>
+    <div class="pay">حوّل <b id="payAmt">0</b> جنيه على الرقم:<br><b id="payNum"></b></div>
+    <label for="wallet">رقم المحفظة اللي حولت منها</label><input id="wallet" type="tel" inputmode="numeric" maxlength="11" placeholder="01xxxxxxxxx" required>
+    <label for="receipt">سكرين الإيصال (اختياري)</label><input id="receipt" type="file" accept="image/png,image/jpeg,image/webp">
+    <input class="hp" id="website" tabindex="-1" autocomplete="off" aria-hidden="true">
+    <div class="err" id="err" role="alert"></div>
+    <button class="btn" id="send" type="submit">تأكيد الطلب</button>
+    <p class="muted">بعد الإرسال هتستنى تأكيدنا للدفع قبل ما الطلب يتجهز.</p>
+  </form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script src="store.js"></script>
+<script>
+const C = window.JENOVA, $ = (i) => document.getElementById(i);
+const sb = supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY);
+$("payNum").textContent = C.PAY_NUMBER;
+
+function render() {
+  const cart = Jenova.cart();
+  $("items").innerHTML = cart.length ? "" : '<p class="muted">السلة فاضية. <a href="index.html">ارجع للرف</a></p>';
+  cart.forEach((i) => {
+    const [sz, col] = String(i.size).split("|");
+    const r = document.createElement("div"); r.className = "row";
+    const info = document.createElement("div"); info.style.cssText = "display:flex;gap:12px;align-items:center";
+    if (i.img) { const im = document.createElement("img"); im.src = i.img; im.alt = i.name; im.style.cssText = "width:56px;height:70px;object-fit:cover;border:2px solid #121820"; info.append(im); }
+    const tx = document.createElement("span"); tx.textContent = `${i.name} • مقاس ${sz}${col ? " • " + col : ""}`; info.append(tx);
+    const q = document.createElement("div"); q.className = "qty";
+    const minus = document.createElement("button"), plus = document.createElement("button"), n = document.createElement("span");
+    minus.type = plus.type = "button"; minus.textContent = "−"; plus.textContent = "+"; n.textContent = ` ${i.qty} `;
+    minus.setAttribute("aria-label", "تقليل"); plus.setAttribute("aria-label", "زيادة");
+    minus.onclick = () => Jenova.setQty(i.id, i.size, i.qty - 1);
+    plus.onclick = () => Jenova.setQty(i.id, i.size, Math.min(10, i.qty + 1));
+    q.append(plus, n, minus); r.append(info, q); $("items").append(r);
+  });
+  paint();
+}
+let applied = "", st = { discount: 0, shipping: 0, free: false, total: 0 };
+function paint() {
+  const sub = Jenova.total(), has = Jenova.cart().length;
+  $("total").textContent = sub + " جنيه";
+  $("discRow").hidden = !st.discount; $("disc").textContent = "-" + st.discount + " جنيه";
+  $("ship").textContent = has ? (st.free ? "مجاني 🎁" : st.shipping + " جنيه") : "-"; $("ship").style.color = st.free ? "#1d7a46" : "";
+  const fin = has ? st.total : 0;
+  $("final").textContent = fin + " جنيه"; $("payAmt").textContent = fin;
+}
+const FN = `${C.SUPABASE_URL}/functions/v1/create-order`, HDR = { "Content-Type": "application/json", apikey: C.SUPABASE_ANON_KEY };
+const itemsOf = () => Jenova.cart().map(({ id, size, qty }) => { const [sz, col] = String(size).split("|"); return { id, size: sz, color: col || null, qty }; });
+async function quote(code) {
+  const res = await fetch(FN, { method: "POST", headers: HDR, body: JSON.stringify({ quote: true, coupon: code, items: itemsOf() }) });
+  return res.json();
+}
+let qid = 0;
+async function refreshQuote(say) {
+  if (!Jenova.cart().length) { st = { discount: 0, shipping: 0, free: false, total: 0 }; paint(); return; }
+  const my = ++qid;
+  try {
+    let r = await quote(applied);
+    if (!r.ok && r.coupon) { $("cmsg").textContent = r.error || "الكود غير صحيح"; applied = ""; r = await quote(""); }
+    else if (r.ok && applied && say) $("cmsg").textContent = `تم تطبيق الكود ${applied} ✅`;
+    if (my !== qid) return;
+    if (r.ok) { st = { discount: r.discount, shipping: r.shipping, free: r.free, total: r.total }; $("err").textContent = ""; }
+    else $("err").textContent = r.error || "";
+  } catch { $("cmsg").textContent = "تعذر حساب الإجمالي، حدّث الصفحة"; }
+  paint();
+}
+$("applyBtn").onclick = () => { applied = $("coupon").value.trim().toUpperCase(); $("cmsg").textContent = applied ? "جاري التحقق..." : ""; refreshQuote(true); };
+document.addEventListener("jenova:cart", () => { render(); refreshQuote(); }); render(); refreshQuote();
+
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const cart = Jenova.cart(), err = $("err"); err.textContent = "";
+  if (!cart.length) { err.textContent = "السلة فاضية"; return; }
+  const btn = $("send"); btn.disabled = true; btn.textContent = "جاري الإرسال...";
+  try {
+    let receipt_path = null;
+    const f = $("receipt").files[0];
+    if (f) {
+      if (f.size > 5 * 1024 * 1024) throw new Error("الصورة أكبر من 5 ميجا");
+      const ext = (f.name.split(".").pop() || "jpg").toLowerCase();
+      receipt_path = `${crypto.randomUUID()}.${ext}`;
+      const up = await sb.storage.from("receipts").upload(receipt_path, f, { contentType: f.type });
+      if (up.error) throw new Error("تعذر رفع الإيصال، جرب صورة تانية أو سيبه فاضي");
+    }
+    const res = await fetch(FN, {
+      method: "POST",
+      headers: HDR,
+      body: JSON.stringify({
+        name: $("name").value, phone: $("phone").value, address: $("address").value,
+        wallet: $("wallet").value, receipt_path, website: $("website").value, coupon: applied, expected: st.total,
+        items: itemsOf(),
+      }),
+    });
+    const out = await res.json();
+    if (!res.ok) throw new Error(out.error || "حصلت مشكلة، جرب تاني");
+    try { localStorage.setItem("jenova_phone", $("phone").value); } catch {}
+    Jenova.clear();
+    location.href = `order.html?code=${out.code}`;
+  } catch (x) {
+    err.textContent = x.message; btn.disabled = false; btn.textContent = "تأكيد الطلب"; refreshQuote().then(() => { err.textContent = x.message; });
+  }
+});
+</script>
+</body>
+</html>
