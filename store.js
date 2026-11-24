@@ -126,3 +126,20 @@
   setTimeout(open, 2100);
   setTimeout(finish, 4000);
 })();
+/* زرار واتساب عائم للعملاء */
+(function () {
+  const C = window.JENOVA || {};
+  let num = String(C.WHATSAPP || C.PAY_NUMBER || "").replace(/\D/g, "");
+  if (!num) return;
+  if (num.startsWith("0")) num = "20" + num.slice(1);
+  const msg = document.getElementById("racks") ? "أهلاً Jenova 👋 عايز أسأل عن موديل" : "أهلاً Jenova 👋 محتاج مساعدة في طلبي";
+  const css = document.createElement("style");
+  css.textContent = ".wab{position:fixed;left:14px;bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;display:flex;align-items:center;gap:8px;background:#25d366;color:#121820;font:700 14px Cairo,sans-serif;text-decoration:none;padding:11px 16px;border-radius:99px;box-shadow:0 6px 16px rgba(0,0,0,.35)}body:has(#admBar) .wab{bottom:calc(86px + env(safe-area-inset-bottom,0px))}.wab svg{width:22px;height:22px}@media (prefers-reduced-motion:no-preference){.wab{animation:wabp 2.6s ease-in-out infinite}@keyframes wabp{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}}";
+  document.head.append(css);
+  const a = document.createElement("a");
+  a.className = "wab"; a.target = "_blank"; a.rel = "noopener";
+  a.href = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+  a.setAttribute("aria-label", "كلمنا على واتساب");
+  a.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2a8.2 8.2 0 0 1-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.6.8-.8 1-.3.2-.6.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.6-1.2.1-.1 0-.3 0-.4l-.8-1.9c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.8 11.900 11.900 0 0 0 4.600 4c1.700.7 2.400.8 3.200.7a2.700 2.700 0 0 0 1.800-1.300 2.200 2.200 0 0 0 .2-1.300c-.1-.1-.3-.2-.6-.3z"/></svg><span>كلمنا واتساب</span>';
+  document.body.append(a);
+})();
