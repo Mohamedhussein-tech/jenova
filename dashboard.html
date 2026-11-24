@@ -1,0 +1,332 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Jenova | لوحة التحكم</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="store.css">
+<style>
+.tabs{display:flex;gap:8px;margin:10px 0}.tabs .btn{margin:0;flex:1;font-size:14px;padding:12px 4px}
+.tabs .btn[aria-selected=false]{background:#fff;color:var(--ink);border:2px solid var(--ink)}
+.kpi{display:grid;grid-template-columns:1fr 1fr;gap:10px}.kpi div{background:#fff;border:2px solid var(--ink);padding:12px;text-align:center}.kpi b{display:block;font-size:28px}
+dialog{border:0;padding:0;background:transparent;max-width:min(94vw,520px);width:100%;max-height:92vh}
+dialog::backdrop{background:rgba(10,18,32,.75)}
+.thumb{width:64px;height:80px;object-fit:cover;border:2px solid var(--ink);background:#dfe5ea}
+.line{display:flex;gap:12px;align-items:center;padding:8px 0;border-bottom:1px solid #c9cfd6}
+.imgs{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}.imgs>div{display:flex;flex-direction:column;gap:4px;align-items:center}
+.imgs img{width:78px;height:98px;object-fit:cover;border:2px solid var(--ink)}
+.imgs button{padding:4px 8px;border:2px solid var(--ink);background:#fff;font:600 12px Cairo,sans-serif;cursor:pointer}
+.chk{display:flex;align-items:center;gap:8px}.chk input{width:auto}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <a class="brand" href="index.html">Jenova admin</a>
+  <form class="card" id="login">
+    <h2>دخول</h2>
+    <label for="em">الإيميل</label><input id="em" type="email" autocomplete="username">
+    <label for="pw">الباسورد</label><input id="pw" type="password" autocomplete="current-password">
+    <div class="err" id="lerr" role="alert"></div>
+    <button class="btn alt" type="submit">دخول</button>
+  </form>
+
+  <div id="app" hidden>
+    <div class="tabs" role="tablist">
+      <button class="btn" id="tOrders" role="tab" aria-selected="true" type="button">الطلبات</button>
+      <button class="btn" id="tStats" role="tab" aria-selected="false" type="button">الزوار</button>
+      <button class="btn" id="tModels" role="tab" aria-selected="false" type="button">الموديلات</button>
+      <button class="btn" id="tCoupons" role="tab" aria-selected="false" type="button">العروض</button>
+    </div>
+    <div>
+      <button class="btn alt sm" id="refresh" type="button">تحديث</button>
+      <a class="btn alt sm" href="index.html" style="text-decoration:none">الموقع</a>
+      <button class="btn alt sm" id="out" type="button">خروج</button>
+    </div>
+    <div id="orders"></div>
+    <div id="stats" hidden></div>
+    <div id="models" hidden></div>
+    <div id="coupons" hidden></div>
+  </div>
+</div>
+
+<dialog id="edlg"><form class="card" id="eform">
+  <h2 id="eTitle">موديل</h2>
+  <label for="fName">الاسم</label><input id="fName" required>
+  <label for="fPrice">السعر (جنيه)</label><input id="fPrice" type="number" inputmode="numeric" min="1" required>
+  <label for="fStock">عدد القطع في المخزون (فاضي = غير محدد)</label><input id="fStock" type="number" inputmode="numeric" min="0">
+  <label for="fDesc">الوصف</label><textarea id="fDesc" rows="3"></textarea>
+  <label for="fSizes">المقاسات (افصل بينها بفاصلة)</label><input id="fSizes" placeholder="28,30,32,34">
+  <label for="fColors">الألوان (اسم:كود، مثال: أزرق:#3f628f, أسود:#111111)</label><input id="fColors" placeholder="أزرق:#3f628f, أسود:#111111">
+  <label for="fRack">رقم الشماعة</label><input id="fRack" type="number" inputmode="numeric" min="1" value="1">
+  <label for="fSort">الترتيب جوه الشماعة (رقم أصغر يظهر الأول)</label><input id="fSort" type="number" inputmode="numeric" value="0">
+  <label class="chk"><input type="checkbox" id="fActive" checked> ظاهر في الموقع</label>
+  <label for="fFiles">الصور (الأولى هي الرئيسية)</label><input id="fFiles" type="file" accept="image/*" multiple>
+  <div class="imgs" id="imgs"></div>
+  <div class="err" id="eErr" role="alert"></div>
+  <button class="btn" id="eSave" type="submit">حفظ</button>
+  <button class="btn alt" id="eDel" type="button">حذف الموديل</button>
+  <button class="btn sm" id="eCancel" type="button" style="margin-top:12px">إلغاء</button>
+</form></dialog>
+
+<dialog id="cdlg"><form class="card" id="cform">
+  <h2>كوبون جديد</h2>
+  <label for="cCode">الكود (حروف إنجليزي وأرقام)</label><input id="cCode" required maxlength="20" style="direction:ltr;text-transform:uppercase" autocapitalize="characters">
+  <label for="cKind">نوع الخصم</label><select id="cKind"><option value="percent">نسبة %</option><option value="fixed">مبلغ ثابت (جنيه)</option></select>
+  <label for="cVal">قيمة الخصم</label><input id="cVal" type="number" inputmode="numeric" min="1" required>
+  <label for="cMin">أقل إجمالي للطلب (جنيه، 0 = بدون)</label><input id="cMin" type="number" inputmode="numeric" min="0" value="0">
+  <label for="cMax">أقصى عدد استخدامات (فاضي = بدون حد)</label><input id="cMax" type="number" inputmode="numeric" min="1">
+  <label for="cExp">ينتهي في (اختياري)</label><input id="cExp" type="date">
+  <div class="err" id="cErr" role="alert"></div>
+  <button class="btn" type="submit">حفظ الكوبون</button>
+  <button class="btn sm" id="cCancel" type="button" style="margin-top:12px">إلغاء</button>
+</form></dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script src="config.js"></script>
+<script>
+const C = window.JENOVA, $ = (i) => document.getElementById(i);
+const sb = supabase.createClient(C.SUPABASE_URL, C.SUPABASE_ANON_KEY);
+const LBL = { pending: "قيد التأكيد", confirmed: "مؤكد", shipped: "اتشحن", rejected: "مرفوض" };
+const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const TABS = { orders: "tOrders", stats: "tStats", models: "tModels", coupons: "tCoupons" };
+let tab = TABS[location.hash.slice(1)] ? location.hash.slice(1) : "orders";
+
+/* ===== الطلبات ===== */
+const WA = {
+  pending: (o) => `أهلاً ${o.customer_name} 👋\nاستلمنا طلبك #${o.code} من Jenova بإجمالي ${o.total} جنيه، وبنراجع تحويلك دلوقتي.`,
+  confirmed: (o) => `أهلاً ${o.customer_name} 👋\nتم تأكيد الدفع لطلبك #${o.code} من Jenova ✅\nجاري تجهيز الطلب وهنبلغك أول ما يتشحن.`,
+  shipped: (o) => `أهلاً ${o.customer_name} 👋\nطلبك #${o.code} من Jenova اتشحن 🚚 وهيوصلك قريب، ابقى جاهز للاستلام.`,
+  rejected: (o) => `أهلاً ${o.customer_name} 👋\nمقدرناش نأكد الدفع لطلبك #${o.code} من Jenova ❌\nممكن تبعتلنا سكرين التحويل علشان نراجعه؟`,
+};
+const waLink = (o) => `https://wa.me/20${String(o.phone).replace(/^0/, "")}?text=${encodeURIComponent((WA[o.status] || WA.pending)(o))}`;
+async function loadOrders() {
+  const box = $("orders");
+  const { data, error } = await sb.from("orders").select("*, order_items(*)").order("created_at", { ascending: false }).limit(100);
+  if (error) { box.textContent = "مفيش صلاحية. تأكد إن الإيميل هو إيميل الأدمن."; return; }
+  box.innerHTML = "";
+  for (const o of data) {
+    const c = mk("div", "card");
+    c.append(mk("h2", "", `#${o.code}`), mk("span", "pill " + o.status, LBL[o.status]));
+    c.append(mk("p", "", `${o.customer_name} • ${o.phone}`), mk("p", "", o.address));
+    o.order_items.forEach((i) => {
+      const r = mk("div", "line");
+      if (i.image_url) { const im = mk("img", "thumb"); im.src = i.image_url; im.alt = i.name; im.loading = "lazy"; r.append(im); }
+      r.append(mk("div", "", `${i.name} | مقاس ${i.size}${i.color ? " | " + i.color : ""} × ${i.qty}`));
+      c.append(r);
+    });
+    if (o.discount > 0) c.append(mk("p", "muted", `خصم ${o.coupon_code || ""}: -${o.discount} جنيه`));
+    if (o.free_ship || o.shipping > 0) c.append(mk("p", "muted", o.free_ship ? "الشحن: مجاني (عرض)" : `الشحن: ${o.shipping} جنيه`));
+    c.append(mk("p", "", `الإجمالي: ${o.total} جنيه`), mk("p", "muted", `حوّل من: ${o.pay_wallet} • ${new Date(o.created_at).toLocaleString("ar-EG")}`));
+    if (o.receipt_path) {
+      const { data: s } = await sb.storage.from("receipts").createSignedUrl(o.receipt_path, 3600);
+      if (s) { const a = mk("a", "", "عرض الإيصال"); a.href = s.signedUrl; a.target = "_blank"; a.rel = "noopener"; c.append(a); }
+    }
+    const bar = mk("div", "row");
+    [["confirmed", "تأكيد الدفع"], ["shipped", "تم الشحن"], ["rejected", "رفض"]].forEach(([st, t]) => {
+      const b = mk("button", "btn sm" + (st === "rejected" ? "" : " alt"), t); b.type = "button";
+      b.onclick = async () => { await sb.from("orders").update({ status: st }).eq("id", o.id); loadOrders(); };
+      bar.append(b);
+    });
+    const del = mk("button", "btn sm", "حذف الطلب"); del.type = "button"; del.style.background = "#7a1216";
+    del.onclick = async () => {
+      if (!confirm(`مسح الطلب #${o.code} نهائياً؟`)) return;
+      const { error: e } = await sb.from("orders").delete().eq("id", o.id);
+      if (e) { alert("تعذر الحذف"); return; }
+      if (o.receipt_path) await sb.storage.from("receipts").remove([o.receipt_path]);
+      loadOrders();
+    };
+    const wa = mk("a", "btn sm", "رسالة واتساب للعميل"); wa.href = waLink(o); wa.target = "_blank"; wa.rel = "noopener"; wa.style.cssText = "background:#25d366;color:#121820;text-decoration:none;margin:0 0 0 8px";
+    const acts = mk("div", "row"); acts.append(wa, del);
+    c.append(bar, acts); box.append(c);
+  }
+  if (!data.length) box.append(mk("p", "muted", "مفيش طلبات لسه."));
+}
+
+/* ===== الإحصائيات ===== */
+async function events() {
+  const since = new Date(Date.now() - 7 * 864e5).toISOString();
+  const { data, error } = await sb.from("events").select("*").gte("created_at", since).order("created_at", { ascending: false }).limit(5000);
+  return error ? null : data;
+}
+const uniq = (rows) => new Set(rows.map((r) => r.session_id)).size;
+function list(title, map) {
+  const f = mk("div"); f.append(mk("h2", "", title));
+  const entries = Object.entries(map).sort((a, b) => b[1] - a[1]);
+  if (!entries.length) f.append(mk("p", "muted", "لسه مفيش بيانات"));
+  entries.forEach(([k, v]) => f.append(mk("div", "row", `${k} : ${v}`)));
+  return f;
+}
+const count = (data, type, key) => data.filter((e) => e.type === type).reduce((m, e) => { const k = e[key] || "غير معروف"; m[k] = (m[k] || 0) + 1; return m; }, {});
+async function loadStats() {
+  const box = $("stats"); box.innerHTML = "";
+  const data = await events();
+  if (!data) { box.textContent = "مفيش صلاحية أو مشكلة في الجدول."; return; }
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const visits = data.filter((e) => e.type === "visit");
+  const durs = data.filter((e) => e.type === "duration" && e.seconds > 0 && e.seconds < 3600);
+  const avg = durs.length ? Math.round(durs.reduce((n, e) => n + e.seconds, 0) / durs.length) : 0;
+  const card = mk("div", "card"), k = mk("div", "kpi");
+  [[uniq(visits.filter((e) => new Date(e.created_at) >= today)), "زوار اليوم"], [uniq(visits), "زوار آخر 7 أيام"], [avg + " ث", "متوسط وقت البقاء"], [uniq(data.filter((e) => e.type === "add_to_cart")), "زوار أضافوا للسلة"]]
+    .forEach(([v, l]) => { const d = mk("div"); d.append(mk("b", "", v), mk("span", "muted", l)); k.append(d); });
+  card.append(k, list("الجهاز", count(data, "visit", "device")), list("جاي منين", count(data, "visit", "referrer")));
+  box.append(card);
+}
+
+/* ===== الموديلات ===== */
+let editing = null, pid = "", imgs = [];
+const parseColors = (s) => s.split(/[,،]/).map((x) => x.trim()).filter(Boolean).map((x) => { const [n, h] = x.split(":").map((y) => y.trim()); return { name: n, hex: /^#[0-9a-f]{3,8}$/i.test(h || "") ? h : "#888888" }; });
+
+async function loadModels() {
+  const box = $("models"); box.innerHTML = "";
+  const add = mk("button", "btn", "+ إضافة موديل جديد"); add.type = "button"; add.onclick = () => openEditor(null); box.append(add);
+  const [{ data: prods, error }, ev] = await Promise.all([sb.from("products").select("*").order("rack").order("sort").order("created_at"), events()]);
+  if (error || !prods) { box.append(mk("p", "muted", "مفيش صلاحية أو مشكلة في الجدول. اتأكد إنك شغلت schema_v2.sql")); return; }
+  const views = count(ev || [], "view_product", "product_id"), adds = count(ev || [], "add_to_cart", "product_id");
+  prods.forEach((p) => {
+    const c = mk("div", "card"), r = mk("div", "line");
+    const im = mk("img", "thumb"); if (p.images?.[0]) im.src = p.images[0]; im.alt = p.name; r.append(im);
+    const info = mk("div"); info.append(mk("h2", "", p.name), mk("div", "muted", `${p.price} جنيه • شماعة ${p.rack} • ${p.active ? "ظاهر" : "مخفي"}`)); r.append(info);
+    const stRow = mk("div", "row"); stRow.append(mk("b", "", p.stock == null ? "المخزون: غير محدد" : `المخزون: ${p.stock} قطعة`));
+    if (p.stock != null) {
+      const w = mk("span"), adj = (d) => { const b = mk("button", "btn alt sm", d > 0 ? "+1" : "−1"); b.type = "button"; b.style.marginInlineStart = "6px"; b.onclick = async () => { await sb.from("products").update({ stock: Math.max(0, p.stock + d) }).eq("id", p.id); loadModels(); }; return b; };
+      w.append(adj(-1), adj(1)); stRow.append(w);
+    }
+    c.append(r, stRow, mk("div", "muted", `المقاسات: ${(p.sizes || []).join(", ")}`), mk("div", "muted", `الألوان: ${(p.colors || []).map((x) => x.name).join(", ") || "-"}`), mk("div", "muted", `مشاهدات: ${views[p.id] || 0} • إضافات للسلة: ${adds[p.id] || 0} (7 أيام)`));
+    const e = mk("button", "btn alt sm", "تعديل"); e.type = "button"; e.style.marginTop = "12px"; e.onclick = () => openEditor(p); c.append(e);
+    box.append(c);
+  });
+}
+function renderImgs() {
+  $("imgs").innerHTML = "";
+  imgs.forEach((u, i) => {
+    const d = mk("div"), im = mk("img"); im.src = u; im.alt = "";
+    const mkb = (t, f) => { const b = mk("button", "", t); b.type = "button"; b.onclick = f; return b; };
+    d.append(im);
+    if (i > 0) d.append(mkb("رئيسية", () => { imgs.unshift(imgs.splice(i, 1)[0]); renderImgs(); }));
+    d.append(mkb("حذف", () => { imgs.splice(i, 1); renderImgs(); }));
+    $("imgs").append(d);
+  });
+}
+function openEditor(p) {
+  editing = p; pid = p ? p.id : "m" + Date.now().toString(36); imgs = p ? [...(p.images || [])] : [];
+  $("eTitle").textContent = p ? "تعديل: " + p.name : "موديل جديد"; $("eErr").textContent = "";
+  $("fName").value = p?.name || ""; $("fPrice").value = p?.price || ""; $("fStock").value = p?.stock ?? ""; $("fDesc").value = p?.description || "";
+  $("fSizes").value = (p?.sizes || C.SIZES).join(","); $("fColors").value = (p?.colors || []).map((c) => `${c.name}:${c.hex}`).join(", ");
+  $("fRack").value = p?.rack || 1; $("fSort").value = p?.sort || 0; $("fActive").checked = p ? p.active : true;
+  $("fFiles").value = ""; $("eDel").hidden = !p; renderImgs(); $("edlg").showModal();
+}
+async function shrink(file, max = 1400) {
+  const bmp = await createImageBitmap(file), k = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const cv = document.createElement("canvas"); cv.width = Math.round(bmp.width * k); cv.height = Math.round(bmp.height * k);
+  const png = file.type === "image/png", ctx = cv.getContext("2d");
+  if (!png) { ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, cv.width, cv.height); }
+  ctx.drawImage(bmp, 0, 0, cv.width, cv.height);
+  return new Promise((r) => cv.toBlob(r, png ? "image/png" : "image/jpeg", 0.85));
+}
+$("fFiles").onchange = async (e) => {
+  const files = [...e.target.files]; if (!files.length) return;
+  $("eErr").textContent = "جاري رفع الصور..."; $("eSave").disabled = true;
+  try {
+    for (const f of files) {
+      const blob = await shrink(f), ext = blob.type === "image/png" ? "png" : "jpg";
+      const path = `${pid}/${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
+      const { error } = await sb.storage.from("products").upload(path, blob, { contentType: blob.type });
+      if (error) throw error;
+      imgs.push(sb.storage.from("products").getPublicUrl(path).data.publicUrl);
+    }
+    $("eErr").textContent = ""; renderImgs();
+  } catch (x) { $("eErr").textContent = "تعذر رفع الصورة: " + (x.message || ""); }
+  $("eSave").disabled = false; e.target.value = "";
+};
+$("eform").addEventListener("submit", async (e) => {
+  e.preventDefault(); $("eErr").textContent = "";
+  const sizes = $("fSizes").value.split(/[,،]/).map((s) => s.trim()).filter(Boolean), price = parseInt($("fPrice").value, 10);
+  if (!sizes.length || !(price > 0)) { $("eErr").textContent = "اكتب السعر والمقاسات"; return; }
+  const row = { id: pid, name: $("fName").value.trim(), price, description: $("fDesc").value.trim(), sizes, colors: parseColors($("fColors").value), images: imgs, stock: $("fStock").value === "" ? null : Math.max(0, parseInt($("fStock").value, 10) || 0), rack: parseInt($("fRack").value, 10) || 1, sort: parseInt($("fSort").value, 10) || 0, active: $("fActive").checked };
+  $("eSave").disabled = true;
+  const { error } = await sb.from("products").upsert(row);
+  $("eSave").disabled = false;
+  if (error) { $("eErr").textContent = "تعذر الحفظ: " + error.message; return; }
+  $("edlg").close(); loadModels();
+});
+$("eDel").onclick = async () => {
+  if (!editing || !confirm(`مسح الموديل "${editing.name}" نهائياً؟`)) return;
+  const { error } = await sb.from("products").delete().eq("id", editing.id);
+  if (error) { $("eErr").textContent = "تعذر الحذف"; return; }
+  $("edlg").close(); loadModels();
+};
+$("eCancel").onclick = () => $("edlg").close();
+
+/* ===== الكوبونات ===== */
+async function loadCoupons() {
+  const box = $("coupons"); box.innerHTML = "";
+  const { data: s } = await sb.from("settings").select("*").eq("id", 1).maybeSingle();
+  const sc = mk("div", "card"); sc.append(mk("h2", "", "الشحن"));
+  if (!s) sc.append(mk("p", "muted", "الجدول مش موجود. اتأكد إنك شغلت schema_v5.sql"));
+  else {
+    const fl = mk("label", "", "سعر الشحن بعد العرض (جنيه)"); fl.htmlFor = "sFee";
+    const fi = mk("input"); fi.id = "sFee"; fi.type = "number"; fi.inputMode = "numeric"; fi.min = "0"; fi.value = s.shipping_fee;
+    const ll = mk("label", "", "عدد الأوردرات المتبقية بشحن مجاني (0 = العرض خلص)"); ll.htmlFor = "sLeft";
+    const li = mk("input"); li.id = "sLeft"; li.type = "number"; li.inputMode = "numeric"; li.min = "0"; li.value = s.free_ship_left;
+    const sm = mk("div", "muted"); sm.setAttribute("role", "status");
+    const sv = mk("button", "btn alt sm", "حفظ"); sv.type = "button"; sv.style.marginTop = "12px";
+    sv.onclick = async () => {
+      const { error } = await sb.from("settings").update({ shipping_fee: Math.max(0, parseInt(fi.value, 10) || 0), free_ship_left: Math.max(0, parseInt(li.value, 10) || 0) }).eq("id", 1);
+      sm.textContent = error ? "تعذر الحفظ" : "تم الحفظ ✅";
+    };
+    sc.append(fl, fi, ll, li, sv, sm);
+  }
+  box.append(sc);
+  const add = mk("button", "btn", "+ كوبون جديد"); add.type = "button"; add.onclick = () => { $("cform").reset(); $("cErr").textContent = ""; $("cdlg").showModal(); }; box.append(add);
+  const { data, error } = await sb.from("coupons").select("*").order("created_at", { ascending: false });
+  if (error) { box.append(mk("p", "muted", "مفيش صلاحية أو الجدول مش موجود. اتأكد إنك شغلت schema_v3.sql")); return; }
+  if (!data.length) box.append(mk("p", "muted", "مفيش كوبونات لسه."));
+  data.forEach((c) => {
+    const card = mk("div", "card");
+    card.append(mk("h2", "", c.code), mk("div", "row", `الخصم: ${c.kind === "percent" ? c.value + "%" : c.value + " جنيه"}`), mk("div", "row", `أقل طلب: ${c.min_total} جنيه`), mk("div", "row", `الاستخدام: ${c.used}${c.max_uses ? " / " + c.max_uses : ""}`), mk("div", "row", c.expires_at ? "ينتهي: " + new Date(c.expires_at).toLocaleDateString("ar-EG") : "بدون انتهاء"), mk("span", "pill " + (c.active ? "confirmed" : "rejected"), c.active ? "شغال" : "موقوف"));
+    const bar = mk("div", "row");
+    const t = mk("button", "btn alt sm", c.active ? "إيقاف" : "تفعيل"); t.type = "button";
+    t.onclick = async () => { await sb.from("coupons").update({ active: !c.active }).eq("code", c.code); loadCoupons(); };
+    const d = mk("button", "btn sm", "حذف"); d.type = "button";
+    d.onclick = async () => { if (!confirm(`مسح الكوبون ${c.code}؟`)) return; await sb.from("coupons").delete().eq("code", c.code); loadCoupons(); };
+    bar.append(t, d); card.append(bar); box.append(card);
+  });
+}
+$("cform").addEventListener("submit", async (e) => {
+  e.preventDefault(); $("cErr").textContent = "";
+  const code = $("cCode").value.trim().toUpperCase(), kind = $("cKind").value, value = parseInt($("cVal").value, 10);
+  if (!/^[A-Z0-9_-]{3,20}$/.test(code)) { $("cErr").textContent = "الكود حروف إنجليزي وأرقام (3 لـ 20)"; return; }
+  if (!(value > 0) || (kind === "percent" && value > 100)) { $("cErr").textContent = "قيمة الخصم غير صحيحة"; return; }
+  const row = { code, kind, value, min_total: parseInt($("cMin").value, 10) || 0, max_uses: parseInt($("cMax").value, 10) || null, expires_at: $("cExp").value ? new Date($("cExp").value + "T23:59:59").toISOString() : null };
+  const { error } = await sb.from("coupons").insert(row);
+  if (error) { $("cErr").textContent = error.code === "23505" ? "الكود ده موجود قبل كده" : "تعذر الحفظ: " + error.message; return; }
+  $("cdlg").close(); loadCoupons();
+});
+$("cCancel").onclick = () => $("cdlg").close();
+
+/* ===== عام ===== */
+function refresh() { return ({ orders: loadOrders, stats: loadStats, models: loadModels, coupons: loadCoupons })[tab](); }
+function setTab(t) {
+  tab = t; history.replaceState(null, "", "#" + t);
+  Object.keys(TABS).forEach((k) => { $(k).hidden = k !== t; $(TABS[k]).setAttribute("aria-selected", k === t); });
+  refresh();
+}
+async function show() {
+  const { data } = await sb.auth.getSession();
+  const on = !!data.session; $("login").hidden = on; $("app").hidden = !on;
+  if (on) setTab(tab);
+}
+Object.entries(TABS).forEach(([k, id]) => ($(id).onclick = () => setTab(k)));
+$("refresh").onclick = refresh;
+$("login").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const { error } = await sb.auth.signInWithPassword({ email: $("em").value, password: $("pw").value });
+  if (error) $("lerr").textContent = "الإيميل أو الباسورد غلط"; else show();
+});
+$("out").onclick = async () => { await sb.auth.signOut(); show(); };
+show();
+</script>
+</body>
+</html>
