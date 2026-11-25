@@ -224,3 +224,85 @@
       anchor.before(box);
     }).catch(() => {});
 })();
+/* المعرض: عرض شبكة بصور كبيرة بجانب الشماعة */
+(function () {
+  const C = window.JENOVA, racks = document.getElementById("racks");
+  if (!C || !racks) return;
+  const css = document.createElement("style");
+  css.textContent = `
+.vbar{display:flex;justify-content:center;gap:10px;margin:22px 16px 0}
+.vbar button{padding:10px 22px;border:2px solid #fff;background:transparent;color:#fff;font:700 15px Cairo,sans-serif;cursor:pointer;border-radius:4px}
+.vbar button[aria-pressed=true]{background:#e0262d;border-color:#e0262d;box-shadow:0 4px 0 rgba(0,0,0,.35)}
+#gallery{max-width:1100px;margin:26px auto 0;padding:0 16px 56px}
+.gh{font:400 clamp(30px,9vw,54px)/1 "Permanent Marker",cursive;color:#fff;margin:0 0 18px;display:flex;align-items:baseline;gap:12px;direction:ltr;justify-content:flex-end}
+.gh small{font:700 14px Cairo,sans-serif;color:#9fb0c4}
+.gg{display:grid;grid-template-columns:repeat(2,1fr);gap:16px 12px;perspective:900px}
+@media (min-width:760px){.gg{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:1000px){.gg{grid-template-columns:repeat(4,1fr)}}
+.gc{position:relative;display:block;padding:0;border:0;background:none;cursor:pointer;text-align:start;color:#fff;font:inherit;transform:rotateX(var(--rx,0deg)) rotateY(var(--ry,0deg));transition:transform .15s}
+.gc:nth-child(even){margin-top:28px}
+.gc .ph{display:block;position:relative;aspect-ratio:4/5;background:#dfe5ea;border:3px solid #fff;box-shadow:0 16px 20px rgba(0,0,0,.38);overflow:hidden;border-radius:3px}
+.gc .ph img,.gc .ph svg{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.gc .ph svg{padding:12px;background:#c9d3de}
+.gc .ph .b{opacity:0;transition:opacity .35s}.gc:hover .ph .b{opacity:1}
+.gc .no{position:absolute;top:8px;right:8px;z-index:2;background:#121820;color:#e8b631;font:400 14px "Permanent Marker",cursive;padding:2px 8px}
+.gc .cap{position:absolute;left:0;right:0;bottom:0;z-index:2;padding:28px 10px 10px;background:linear-gradient(transparent,rgba(10,14,20,.9));display:flex;justify-content:space-between;align-items:flex-end;gap:6px}
+.gc .cap b{font:400 18px "Permanent Marker",cursive;direction:ltr}
+.gc .cap span{color:#e8b631;font-weight:700;font-size:14px;white-space:nowrap}
+.gc .lw{position:absolute;top:8px;left:8px;z-index:2;background:#e8b631;color:#121820;font-weight:700;font-size:12px;padding:2px 8px}
+.gc .rb{position:absolute;top:34px;left:-36px;z-index:3;width:140px;text-align:center;transform:rotate(-35deg);background:#e0262d;color:#fff;font:400 14px "Permanent Marker",cursive;padding:3px 0}
+.gc.out .ph img,.gc.out .ph svg{filter:grayscale(1) brightness(.7)}
+@media (prefers-reduced-motion:no-preference){.gc:not(.in){opacity:0}.gc.in{animation:gin .55s var(--d,0ms) backwards}@keyframes gin{from{opacity:0;transform:translateY(26px)}to{opacity:1}}}`;
+  document.head.append(css);
+
+  const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const bar = el("div", "vbar"); bar.setAttribute("role", "group"); bar.setAttribute("aria-label", "طريقة العرض");
+  const bR = el("button", "", "🧥 الشماعة"), bG = el("button", "", "🖼️ المعرض"); bR.type = bG.type = "button";
+  bar.append(bR, bG); racks.before(bar);
+  const gal = el("section"); gal.id = "gallery"; gal.hidden = true; gal.setAttribute("aria-label", "المعرض"); racks.after(gal);
+
+  let loaded = false;
+  function card(p, i) {
+    const b = el("button", "gc"); b.type = "button"; b.style.setProperty("--d", (i % 8) * 70 + "ms"); b.setAttribute("aria-label", p.name + " - افتح التفاصيل");
+    const ph = el("span", "ph"), imgs = p.images || [];
+    if (imgs[0]) {
+      const a = new Image(); a.src = imgs[0]; a.alt = p.name; a.loading = "lazy"; ph.append(a);
+      if (imgs[1]) { const c = new Image(); c.src = imgs[1]; c.alt = ""; c.className = "b"; c.loading = "lazy"; ph.append(c); }
+    } else if (typeof fallback === "function") { const s = fallback(p.colors && p.colors[0] && p.colors[0].hex); s.removeAttribute("class"); ph.append(s); }
+    ph.append(el("span", "no", String(i + 1).padStart(2, "0")));
+    const cap = el("span", "cap"); cap.append(el("b", "", p.name), el("span", "", p.price + " جنيه")); ph.append(cap);
+    if (p.stock != null && p.stock <= 0) { b.classList.add("out"); ph.append(el("span", "rb", "SOLD OUT")); }
+    else if (p.stock != null && p.stock <= 3) ph.append(el("span", "lw", "باقي " + p.stock));
+    b.append(ph);
+    b.onclick = () => { if (typeof openProduct === "function") openProduct(p); };
+    b.addEventListener("pointermove", (e) => { if (e.pointerType !== "mouse") return; const r = b.getBoundingClientRect(); b.style.setProperty("--ry", ((e.clientX - r.left) / r.width - .5) * 16 + "deg"); b.style.setProperty("--rx", (.5 - (e.clientY - r.top) / r.height) * 10 + "deg"); });
+    b.addEventListener("pointerleave", () => { b.style.removeProperty("--rx"); b.style.removeProperty("--ry"); });
+    return b;
+  }
+  async function load() {
+    loaded = true; gal.append(el("p", "load", "جاري تحميل المعرض..."));
+    try {
+      const res = await fetch(`${C.SUPABASE_URL}/rest/v1/products?select=*&active=eq.true&order=rack.asc,sort.asc,created_at.asc`, { headers: { apikey: C.SUPABASE_ANON_KEY } });
+      if (!res.ok) throw 0;
+      const prods = await res.json();
+      gal.innerHTML = "";
+      const h = el("h3", "gh", "LOOKBOOK"); h.append(el("small", "", String(prods.length).padStart(2, "0") + " PIECES")); gal.append(h);
+      const grid = el("div", "gg"); prods.forEach((p, i) => grid.append(card(p, i))); gal.append(grid);
+      const cards = [...grid.children];
+      if ("IntersectionObserver" in window) {
+        const io = new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { e.target.classList.add("in"); io.unobserve(e.target); } }), { rootMargin: "0px 0px -8% 0px" });
+        cards.forEach((c) => io.observe(c));
+      } else cards.forEach((c) => c.classList.add("in"));
+    } catch { loaded = false; gal.innerHTML = ""; gal.append(el("p", "load", "تعذر تحميل المعرض، جرب تاني.")); }
+  }
+  function show(mode) {
+    const g = mode === "gallery";
+    racks.hidden = g; gal.hidden = !g;
+    bR.setAttribute("aria-pressed", String(!g)); bG.setAttribute("aria-pressed", String(g));
+    try { sessionStorage.setItem("jenova_view", mode); } catch {}
+    if (g && !loaded) load();
+  }
+  bR.onclick = () => show("rack"); bG.onclick = () => show("gallery");
+  let saved = "rack"; try { saved = sessionStorage.getItem("jenova_view") || "rack"; } catch {}
+  show(saved);
+})();
